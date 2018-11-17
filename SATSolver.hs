@@ -1,4 +1,6 @@
+
 module SATSolver where
+import Data.Maybe
 
 data Formula = T 
              | F  
@@ -119,11 +121,13 @@ isResolve fs1 fs2
   = or [isOppo f1 f2 | f1 <- fs1, f2 <- fs2]
 
 -- pre: f is a literal, fs is a clause
-unitResolve :: Formula -> Formula -> Formula
+-- extra used for checking unit resolve effect or not
+unitResolve :: Formula -> Formula -> (Formula, Bool)
 unitResolve  f fs
-  | elem f fs' = Or []
-  | otherwise = filter (not . isOppo f) fs'
-  where fs' = extractOr fs
+  | elem f (extractOr fs) = (Or [], True)
+  | extractOr fs == extractOr fs' = (fs, False)
+  | otherwise = (fs', True)
+  where fs' =  Or (filter (not . isOppo f) (extractOr fs))
 
 -- Assuming no duplicates list
 {-
@@ -144,20 +148,67 @@ isLiteral f
       F -> True
       otherwise -> False
 
+clean :: [Formula] -> [Formula]
+clean [] = []
+clean ((Or f):fs)
+  | f == [] = clean fs
+  | length f == 1 = (head f : clean fs)
+  | otherwise = ((Or f):(clean fs))
+clean (f:fs) = (f:(clean fs))
+
 -- Assuming input formula is in cnf form
 -- i.e. = And [ Or [..], Or [..], Or [..]] 
 -- is boolean constrain propagation unique or not
-bcp :: Formula -> Maybe Formula
+bcp :: Formula -> Formula
 bcp (Or fs) = bcp' fs
   where bcp' fs
-          | literal == Nothing = Nothing
+          | maybeliteral == Nothing || not resolved = Or fs
           | otherwise = bcp (Or fs') 
-          where literal = getLiteral fs
-                fs' = map (unitResolve literal) fs
-        getLiteral :: [Formula] -> Maybe Formula
-        getLiteral fs
-          | l == [] = Nothing
-          | otherwise = head l
-          where l = filter isLiteral fs
+          where maybeliteral = getLiteral fs
+                literal = fromJust maybeliteral
+                fsBool = map (unitResolve literal) (filter (\f -> f /= literal) fs)
+                resolved = or (map snd fsBool)
+                fs' = clean $ map fst fsBool
+                
+getLiteral :: [Formula] -> Maybe Formula
+getLiteral fs
+  | l == [] = Nothing
+  | otherwise = Just (head l)
+ where l = filter isLiteral fs
 
- 
+getVar :: Formula -> Just Formula
+getVar T = Nothing
+getVar F = Nothing
+getVar (Var s) = Just (Var s)
+getVar (Or fs) = if l' == [] then Nothing else Just (head l')
+  where l' = filter (\f -> getVar f \= Nothing) fs
+getVar (And fs) = if l' == [] then Nothing else Just (head l')
+  where l' = filter (\f -> getVar f \= Nothing) fs
+
+-- pre: given formula is in cnf form
+chooseVar :: Formula -> Maybe Formula
+chooseVar f = getVar f
+
+
+-- pre : formula to transform is in cnf
+assignVar :: (Formula, Formula) -> Formula -> Formula
+assignVar (f, b) (Or fs) = Or (map (\f -> assignVar f) fs)
+assignVar (f, b) f' = if f == f' then b else f'
+
+
+eval :: Formula -> Formula
+
+
+plp :: Formula -> Formula
+
+dpll :: Formula -> Bool
+dpll f
+  | f' == T = True
+  | f' == F = False
+  | otherwise = case var of
+                  Var s -> if dpll (eval $ assignVar (var, T) f')
+                           then True
+                           else dpll (eval $ assignVar (var, F) f')
+                  otherwise -> False
+  where f' = bcp f
+        var = getVar f'
