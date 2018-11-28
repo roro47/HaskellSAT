@@ -51,7 +51,8 @@ chooseVar f = getVar f
 assignVar :: (Formula, Formula) -> Formula -> Formula
 assignVar (f, b) (And fs) = And (map (\f' -> assignVar (f, b) f') fs)
 assignVar (f, b) (Or fs) = Or (map (\f'' -> assignVar (f, b) f'') fs)
-assignVar (f, b) (Not f') = if f == f' then Const False else f'  
+assignVar (f, b) (Not f') = if f == f' then b' else f'
+  where b' = if b == Const False then Const True else Const False 
 assignVar (f, b) f' = if f == f' then b else f'
 
 -- pre: formula to transform is in cnf
@@ -78,10 +79,12 @@ plp :: Formula -> Formula
 dpll :: Formula -> Bool
 dpll (Const b) = b
 dpll f = case var of
-           Just (Var s)-> if dpll (eval $ assignVar (Var s, Const True) f')
+           Just (Var s)-> if dpll (eval $
+                                   assignVar (Var s, Const True) f')
                           then True
-                          else dpll (eval $ assignVar (Var s, Const False) f')
-           otherwise -> False
+                          else dpll (eval $
+                                     assignVar (Var s, Const False) f')
+           otherwise -> dpll f'
   where f' = bcp f
         var = getVar f'
 

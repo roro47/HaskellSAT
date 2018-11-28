@@ -1,3 +1,5 @@
+import Formula
+import Convert
 import SATSolver
 import Test.HUnit
 
@@ -30,7 +32,7 @@ nnfInput4 = Not (Imply p (And [p, q]))
 nnfOutput4 = And [p, Or [Not p, Not q]]
 
 cnfInput1 = Iff p (Imply q r)
-cnfOutput = And [Or [Not p, Not q, r], Or [q, p], Or [Not r, p]]
+cnfOutput1 = And [Or [Not p, Not q, r], Or [q, p], Or [Not r, p]]
 
 satInput1 = cnf1
 satOutput1 = True
@@ -56,8 +58,9 @@ satOutput7 = False
 satInput8 = cnf8
 satOutput8 = True
 
-genTest (a, b)
-  = TestCase (assertEqual ("for "++ show a) b (nnf a))
+genTest f (a, b)
+  = TestCase (assertEqual ("for "++ show a) b (f a))
+
 
 label xs prefix = zip xs testname
   where testname = [prefix ++ show n | n <- [1..length xs]]
@@ -66,17 +69,24 @@ nnftests = [(nnfInput1, nnfOutput1),
              (nnfInput2, nnfOutput2),
              (nnfInput3, nnfOutput3),
              (nnfInput4, nnfOutput4)]
+cnftests = [(cnfInput1, cnfOutput1)]
 
-cnftests = [(cnfInput1, cnfOutput1),
-             (cnfInput2, cnfOutput2),
-             (cnfInput3, cnfOutput3),
-             (cnfInput4, cnfOutput4),
-             (cnfInput5, cnfOutput5),
-             (cnfInput6, cnfOutput6),
-             (cnfInput7, cnfOutput7),
-             (cnfInput8, cnfOutput8)]
+sattests = [ (satInput1, satOutput1),
+             (satInput2, satOutput2),
+             (satInput3, satOutput3),
+             (satInput4, satOutput4),
+             (satInput5, satOutput5),
+             (satInput6, satOutput6),
+             (satInput7, satOutput7),
+             (satInput8, satOutput8)]
 
-nnfTest = map (\(t, l) -> TestLabel l t ) (label nnftests "nnfTest")
-cnfTest = map (\(t, l) -> TestLabel l t ) (label nnftests "cnfTest")
-
-tests = TestList [TestLabel (nnfTest ++ cnfTest)]
+nnfTest
+  = map (\(t, l) -> TestLabel l t) (label (map (genTest nnf) nnftests) "nnfTest")
+cnfTest
+  = map (\(t, l) -> TestLabel l t) (label (map (genTest cnf) cnftests) "cnfTest")
+satTest
+  = map (\(t, l) -> TestLabel l t) (label (map (genTest sat) sattests) "satTest")
+  
+nnfTests = TestList nnfTest
+cnfTests = TestList cnfTest
+satTests = TestList satTest
